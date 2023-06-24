@@ -15,6 +15,7 @@ function dateToString(fecha) {
     return `${year}-${month}-${day}`;
 }
 
+
 module.exports = {
     stringToDate,
     dateToString

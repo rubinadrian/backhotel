@@ -3,7 +3,7 @@ const connection = require("../basededatos");
 
 class Reserva {
 
-    Estado = {
+    static Estado = {
         Pendiente: 0,
         Facturada: 1,
         Cobrada: 2
@@ -15,45 +15,56 @@ class Reserva {
         this.huesped = reserva.huesped;
         this.habitacion_id = reserva.habitacion_id;
         this.importe = reserva.importe;
-        this.estado = reserva.estado;
+        this.estado_id = reserva.estado_id;
         this.descuento = reserva.descuento;
     }
 
 
-    save(callback) {
-        connection.query(`INSERT INTO reservas (fecha,huesped, habitacion_id, importe) VALUES (?,?,?,?)`,
+    save() {
+        return connection.promise().query(`
+            INSERT INTO reservas (fecha,huesped, habitacion_id, importe) 
+            VALUES (?,?,?,?)`,
             [this.fecha, this.huesped, this.habitacion_id, this.importe]
-            , callback);
+            );
     }
 
-    del(ids, callback) {
-        connection.query(`DELETE FROM reservas WHERE id in (?)`, [ids], callback);
+    static del(ids) {
+        return connection.promise().query(`DELETE FROM reservas WHERE id in (?)`, [ids]);
     }
 
-
-    cobrar(ids, callback) {
-        connection.query(`UPDATE reservas SET estado = ${this.Estado.Cobrada} WHERE id in (?)`, [ids], callback);
+    static cobrar(ids) {
+        return connection.promise().query(`
+            UPDATE reservas 
+            SET estado_id = ${Reserva.Estado.Cobrada} 
+            WHERE id in (?)`, [ids]);
     }
 
-    getReservasDesdeHasta(fechaDesde, fechaHasta, callback) {
-        console.log(fechaDesde, fechaHasta);
-        connection.query(`SELECT * FROM reservas WHERE 
-        FECHA BETWEEN ? AND ? 
-        and habitacion_id = ${this.habitacion_id}`,
-            [fechaDesde, fechaHasta]
-            , callback);
+    static getReservasDesdeHasta(fechaDesde, fechaHasta, habitacion_id) {
+        return connection.promise().query(`
+            SELECT * FROM reservas 
+            WHERE 
+                fecha BETWEEN ? AND ? 
+            AND habitacion_id = ${habitacion_id}`,
+            [fechaDesde, fechaHasta]);
     }
 
-    getReservasPend(callback) {
-        connection.query(`SELECT * FROM reservas WHERE 
-        estado <> ${this.Estado.Cobrada} 
-        and habitacion_id = ${this.habitacion_id}`, [], callback);
+    static getReservasPend(habitacion_id) {
+        return connection.promise().query(`
+            SELECT * FROM reservas 
+            WHERE 
+                estado_id <> ${this.Estado.Cobrada} 
+            AND habitacion_id = ${habitacion_id}`);
     }
 
-    getReservasVigentes(callback) {
-        connection.query(`SELECT * FROM reservas WHERE 
-        (estado <> ${this.Estado.Cobrada} or fecha >= CURDATE()) 
-        and habitacion_id = ${this.habitacion_id}`, [], callback);
+    // Reservas desde hoy en adelante mas las pendiente de cobro
+    static getReservasVigentes(habitacion_id) {
+        return connection.promise().query(`
+            SELECT reservas.*, reservas_estados.estado 
+            FROM reservas 
+            LEFT JOIN reservas_estados on (reservas_estados.id = reservas.estado_id) 
+            WHERE 
+                (fecha >= CURDATE() or estado_id <> ${Reserva.Estado.Cobrada})
+            AND habitacion_id = ${habitacion_id}`);
     }
 }
 
